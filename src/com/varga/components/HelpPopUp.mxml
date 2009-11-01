@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Group xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		 xmlns:s="library://ns.adobe.com/flex/spark" 
+		 xmlns:mx="library://ns.adobe.com/flex/halo" width="800" height="600">
+	<fx:Script>
+		<![CDATA[
+			import flash.events.MouseEvent;
+			
+			import mx.managers.PopUpManager;
+
+			protected function btn_close_clickHandler(event:MouseEvent):void
+			{
+				// TODO Auto-generated method stub
+				if(this.isPopUp == true)
+				{
+					PopUpManager.removePopUp(this);
+				}
+			}
+
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<!-- Place non-visual elements (e.g., services, value objects) here -->
+	</fx:Declarations>
+	<s:Button x="365" y="569" label="OK" id="btn_close" click="btn_close_clickHandler(event)"/>
+	<s:Label text="Help" left="0" right="0" top="10" verticalAlign="middle" textAlign="center" fontSize="36"/>
+	<mx:HTML x="0" y="52" width="800" height="500"/>
+</s:Group>

@@ -1,0 +1,221 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:WindowedApplication xmlns:fx="http://ns.adobe.com/mxml/2009" 
+					   xmlns:s="library://ns.adobe.com/flex/spark" 
+					   xmlns:mx="library://ns.adobe.com/flex/halo"
+					   creationComplete="windowedapplication1_creationCompleteHandler(event)">
+	
+	<fx:Script>
+		<![CDATA[			
+			import com.varga.components.AboutPopUp;
+			import com.varga.components.HelpPopUp;
+			import com.varga.database.DatabaseHandler;
+			import com.varga.database.DatabaseHandlerEvent;
+			import com.varga.database.item.DatabaseItem;
+			import com.varga.database.item.DatabaseItemEvent;
+			
+			import flash.events.Event;
+			import flash.events.KeyboardEvent;
+			import flash.events.MouseEvent;
+			import flash.net.URLLoader;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.events.FlexEvent;
+			import mx.events.ListEvent;
+			import mx.managers.DragManager;
+			import mx.managers.PopUpManager;
+
+			private var __dbItem : DatabaseItem = null;
+			
+			[Bindable]
+			private var tableNames : Array = new Array();
+			
+			[Bindable]
+			private var dataCollection : ArrayCollection = new ArrayCollection();
+			
+			protected function windowedapplication1_creationCompleteHandler(event:FlexEvent):void
+			{
+				// TODO Auto-generated method stub
+			}
+			
+			private function openDB($url : String):void
+			{
+				trace("URL from DB: " + $url);
+				var dbHandler : DatabaseHandler = DatabaseHandler.INSTANCE;
+				
+				dbHandler.addEventListener(DatabaseHandlerEvent.FILE_LOAD_ERROR, dbHandlerError);
+				dbHandler.addEventListener(DatabaseHandlerEvent.FILE_LOADED, dbHandlerOpen);
+				
+				dbHandler.createDatabase($url);				
+			}
+			
+			private function dbHandlerError(event : DatabaseHandlerEvent):void
+			{
+				Alert.show("Open DB Error:\n" + event);
+			}
+			
+			private function dbHandlerOpen(event : DatabaseHandlerEvent):void
+			{
+				__dbItem = event.dbItem;			
+				readCompleteDB();
+			}
+			
+			private function readCompleteDB():void
+			{
+				__dbItem.addEventListener(DatabaseItemEvent.SQLCONNECTION_SHEMARESULT, dbItemShemaResultHandler);
+				__dbItem.addEventListener(DatabaseItemEvent.STATEMENT_RESULT, dbItemResultHandler);
+				__dbItem.loadShema();
+			}
+			
+			private function dbItemShemaResultHandler( event : DatabaseItemEvent):void
+			{
+				getTableNames(event.databaseShema);
+			}
+			
+			private function dbItemResultHandler(event:DatabaseItemEvent):void
+			{
+				dg_data.dataProvider = event.databaseResult.data;
+			}
+			
+			private function getTableNames( shema : SQLSchemaResult):void
+			{				
+				
+				tableNames = new Array();
+				
+				for( var i:uint=0; i < shema.tables.length; i++)
+				{
+					tableNames.push(shema.tables[i].name)
+				}
+
+			}
+			
+			private function getAllDataFromTable($tableName:String):void
+			{
+				var statement : String = "SELECT * FROM " + $tableName;
+				__dbItem.executeStatement(statement);
+			}
+
+			protected function tree_dbTables_changeHandler(event:ListEvent):void
+			{
+				// TODO Auto-generated method stub
+				getAllDataFromTable(String(event.itemRenderer.data));
+			}
+
+
+			protected function btn_executeStatement_clickHandler(event:MouseEvent = null):void
+			{
+				// TODO Auto-generated method stub
+				if(txt_sqlStatement.text.length < 5)
+				{
+					Alert.show("Please write a SQL Statement", "Error");
+				}
+				else
+				{
+					__dbItem.executeStatement(txt_sqlStatement.text);
+				}
+			}
+
+
+			protected function txt_sqlStatement_keyDownHandler(event:KeyboardEvent):void
+			{
+				if(event.charCode == 13)
+				{
+					btn_executeStatement_clickHandler();
+				}
+			}
+
+
+			protected function btn_openDB_clickHandler(event:MouseEvent):void
+			{
+				// TODO Auto-generated method stub
+				var f:File = File.desktopDirectory;
+				f.browseForOpen("Open Database");
+				f.addEventListener(Event.SELECT, fileSelectHandler);
+			}
+			
+			private function fileSelectHandler(event : Event):void
+			{
+				openDB(event.target.url);
+			}
+			
+			private function openPopUp($name : String):void
+			{
+				switch($name.toLowerCase())
+				{
+					case "about" :
+						var about : AboutPopUp = AboutPopUp(PopUpManager.createPopUp(this, AboutPopUp, true));
+						PopUpManager.centerPopUp(about);
+						break;
+					case "help" :
+						var help : HelpPopUp = HelpPopUp(PopUpManager.createPopUp(this, HelpPopUp, true));
+						PopUpManager.centerPopUp(help);
+						break;
+					default :
+						break;
+				}
+			}
+
+
+			protected function btn_createDB_clickHandler(event:MouseEvent):void
+			{
+				// TODO Auto-generated method stub
+				var f:File = File.desktopDirectory;
+				f.browseForSave("Create Database");
+				f.addEventListener(Event.SELECT, fileCreateHandler);
+			}
+			
+			private function fileCreateHandler(event:Event):void
+			{
+				openDB(event.currentTarget.url);
+			}
+
+		]]>
+	</fx:Script>
+	
+	<fx:Declarations>
+		<!-- Place non-visual elements (e.g., services, value objects) here -->
+	</fx:Declarations>
+	
+	<mx:DataGrid id="dg_data" left="164" right="0" top="146" bottom="0"/>
+	<mx:Tree id="tree_dbTables" left="0" bottom="0" top="146" width="156" dataProvider="{this.tableNames}" change="tree_dbTables_changeHandler(event)"/>
+	<s:TextArea id="txt_sqlStatement" left="0" top="41" right="0" height="95" keyDown="txt_sqlStatement_keyDownHandler(event)"/>
+	
+	<mx:ApplicationControlBar id="acb_main"  left="0" top="0" right="0" height="33">
+		<s:Button label="Oben Database" id="btn_openDB" click="btn_openDB_clickHandler(event)"/>
+		<s:Button label="Create Query"/>
+		<s:Button label="Help" id="btn_help" click="openPopUp(btn_help.label)"/>
+		<s:Button label="About" id="btn_about" click="openPopUp(btn_about.label)"/>
+	</mx:ApplicationControlBar>
+	
+	<s:nativeDragEnter>
+		// Event handler for when something is dragged over to the WindowedApplication
+		
+		// Only allow files to be dragged in
+		if (event.clipboard.hasFormat(ClipboardFormats.FILE_LIST_FORMAT))
+		{
+			var files:Array = event.clipboard.getData(ClipboardFormats.FILE_LIST_FORMAT) as Array;
+		
+			// only allow a single file to be dragged in
+			if (files.length == 1)
+			{
+				DragManager.acceptDragDrop(event.currentTarget as WindowedApplication);
+			}
+			else
+			{
+				Alert.show("U can only one DB draggen!", "Error");
+			}		
+		}
+	</s:nativeDragEnter>
+	
+	<s:nativeDragExit>
+		// Event handler for when the drag leaves the WindowedApplication
+		setStyle("backgroundColor", 0xffffff);
+	</s:nativeDragExit>
+	
+	<s:nativeDragDrop>
+		// Event handler for when a dragged item is dropped on the WindowedApplication
+		var arr:Array = event.clipboard.getData(ClipboardFormats.FILE_LIST_FORMAT) as Array;
+		openDB(File(arr[0]).url);
+	</s:nativeDragDrop>
+	
+</s:WindowedApplication>
